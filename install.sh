@@ -373,23 +373,30 @@ ensure_mongodb_packages() {
       #         Ubuntu keyserver (hkp usually unblocked by network firewalls).
       pgp_downloaded="0"
       local pgp_mirror_base="${FELFEL_MONGODB_PGP_MIRROR:-}"
+    
+      if [[ -f "/usr/share/keyrings/mongodb-server-${series}.gpg" || -f "/usr/share/keyrings/mongodb-server-8.0.gpg" ]]; then
+        log "MongoDB PGP key already exists. Skipping download..."
+        pgp_downloaded="1"
+        if [[ -f "/usr/share/keyrings/mongodb-server-8.0.gpg" ]]; then key_series="8.0"; else key_series="$series"; fi
+      fi
 
-      for key_series in "$series" "8.0"; do
-        [[ -n "$key_series" ]] || continue
-        local pgp_urls=()
-        pgp_urls+=("https://pgp.mongodb.com/server-${key_series}.asc")
-        pgp_urls+=("https://www.mongodb.org/static/pgp/server-${key_series}.asc")
-        [[ -z "$pgp_mirror_base" ]] || pgp_urls+=("${pgp_mirror_base}/server-${key_series}.asc")
-
-        for pgp_url in "${pgp_urls[@]}"; do
-          log "Trying MongoDB PGP key: ${pgp_url}"
-          if curl -fsSL --max-time 30 --retry 2 "${pgp_url}" -o "$pgp_tmp" 2>/dev/null \
-             && grep -q "BEGIN PGP" "$pgp_tmp" 2>/dev/null; then
-            pgp_downloaded="1"; break
-          fi
-          rm -f "$pgp_tmp"
-        done
-        [[ "$pgp_downloaded" == "1" ]] && break
+      if [[ "$pgp_downloaded" != "1" ]]; then
+        for key_series in "$series" "8.0"; do
+          [[ -n "$key_series" ]] || continue
+          local pgp_urls=()
+          pgp_urls+=("https://pgp.mongodb.com/server-${key_series}.asc")
+          pgp_urls+=("https://www.mongodb.org/static/pgp/server-${key_series}.asc")
+          [[ -z "$pgp_mirror_base" ]] || pgp_urls+=("${pgp_mirror_base}/server-${key_series}.asc")
+  
+          for pgp_url in "${pgp_urls[@]}"; do
+            log "Trying MongoDB PGP key: ${pgp_url}"
+            if curl -fsSL --max-time 30 --retry 2 "${pgp_url}" -o "$pgp_tmp" 2>/dev/null \
+               && grep -q "BEGIN PGP" "$pgp_tmp" 2>/dev/null; then
+              pgp_downloaded="1"; break
+            fi
+            rm -f "$pgp_tmp"
+          done
+          [[ "$pgp_downloaded" == "1" ]] && break
 
         # Fallback: Ubuntu keyserver (usually reachable when CDN is geo-blocked)
         log "CDN blocked. Trying Ubuntu keyserver for MongoDB ${key_series} key..."
