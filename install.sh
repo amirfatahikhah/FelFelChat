@@ -11,7 +11,7 @@ set -euo pipefail
 APP_NAME="FelFel Chat"
 SCRIPT_VERSION="2026.02.26-15"
 DEFAULT_SERVICE_NAME="felfelchat"
-DEFAULT_REPO="${GIT_REPO_URL:-${GITHUB_REPO:-https://github.com/MatinSenPai/FelFelChat}}"
+DEFAULT_REPO="${GIT_REPO_URL:-${GITHUB_REPO:-https://github.com/amirfatahikhah/FelFelChat}}"
 DEFAULT_REF="${GITHUB_REF:-main}"
 CONFIG_DIR="${HOME}/.config/felfel"
 CONFIG_FILE="${CONFIG_DIR}/config"
