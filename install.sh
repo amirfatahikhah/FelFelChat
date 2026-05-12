@@ -371,76 +371,8 @@ ensure_mongodb_packages() {
       # (pgp.mongodb.com / fastdl.mongodb.org) may return 403.
       # We try: official CDN -> mongodb.org static -> custom mirror ->
       #         Ubuntu keyserver (hkp usually unblocked by network firewalls).
-      pgp_downloaded="0"
+      pgp_downloaded="1"
       local pgp_mirror_base="${FELFEL_MONGODB_PGP_MIRROR:-}"
-    
-      if [[ -f "/usr/share/keyrings/mongodb-server-${series}.gpg" || -f "/usr/share/keyrings/mongodb-server-8.0.gpg" ]]; then
-        log "MongoDB PGP key already exists. Skipping download..."
-        pgp_downloaded="1"
-        if [[ -f "/usr/share/keyrings/mongodb-server-8.0.gpg" ]]; then key_series="8.0"; else key_series="$series"; fi
-      fi
-
-      if [[ "$pgp_downloaded" != "1" ]]; then
-        for key_series in "$series" "8.0"; do
-          [[ -n "$key_series" ]] || continue
-          local pgp_urls=()
-          pgp_urls+=("https://pgp.mongodb.com/server-${key_series}.asc")
-          pgp_urls+=("https://www.mongodb.org/static/pgp/server-${key_series}.asc")
-          [[ -z "$pgp_mirror_base" ]] || pgp_urls+=("${pgp_mirror_base}/server-${key_series}.asc")
-  
-          for pgp_url in "${pgp_urls[@]}"; do
-            log "Trying MongoDB PGP key: ${pgp_url}"
-            if curl -fsSL --max-time 30 --retry 2 "${pgp_url}" -o "$pgp_tmp" 2>/dev/null \
-               && grep -q "BEGIN PGP" "$pgp_tmp" 2>/dev/null; then
-              pgp_downloaded="1"; break
-            fi
-            rm -f "$pgp_tmp"
-          done
-          [[ "$pgp_downloaded" == "1" ]] && break
-
-        # Fallback: Ubuntu keyserver (usually reachable when CDN is geo-blocked)
-        log "CDN blocked. Trying Ubuntu keyserver for MongoDB ${key_series} key..."
-        local mongo_key_ids=(
-          "B00A0BD1E2C63C11"
-          "20691EEC35216C63"
-          "E162F504A20CDF15"
-          "99DB70FAE1D7CE227FB6488206B2552E"
-        )
-        for key_id in "${mongo_key_ids[@]}"; do
-          rm -f /tmp/felfel-mongo-tmp.gpg /tmp/felfel-mongo-tmp.gpg~ 2>/dev/null || true
-          if gpg --no-default-keyring \
-               --keyring /tmp/felfel-mongo-tmp.gpg \
-               --keyserver hkp://keyserver.ubuntu.com \
-               --recv-keys "$key_id" 2>/dev/null; then
-            gpg --no-default-keyring \
-              --keyring /tmp/felfel-mongo-tmp.gpg \
-              --export --armor "$key_id" > "$pgp_tmp" 2>/dev/null || true
-            rm -f /tmp/felfel-mongo-tmp.gpg /tmp/felfel-mongo-tmp.gpg~ 2>/dev/null || true
-            if [[ -s "$pgp_tmp" ]]; then
-              pgp_downloaded="1"; break
-            fi
-          fi
-        done
-        [[ "$pgp_downloaded" == "1" ]] && break
-      done
-
-      if [[ "$pgp_downloaded" != "1" ]]; then
-        warn "Could not download MongoDB PGP key from any source."
-        warn "Trying direct binary tarball install as final fallback..."
-        if _install_mongodb_deb_direct "$series" "$codename" "$distro"; then
-          return 0
-        fi
-        err "MongoDB installation failed. Try one of the following env vars:"
-        err "  FELFEL_MONGODB_PGP_MIRROR=<url>  – mirror serving server-X.Y.asc files"
-        err "  FELFEL_MONGODB_MIRROR=<url>       – apt mirror base URL"
-        err "  FELFEL_MONGODB_DEB_MIRROR=<url>   – binary tarball mirror"
-        err "  FELFEL_MONGODB_SKIP_INSTALL=1     – skip (if MongoDB already installed)"
-        exit 1
-      fi
-
-      keyring="/usr/share/keyrings/mongodb-server-${key_series}.gpg"
-      as_root gpg --dearmor -o "$keyring" "$pgp_tmp"
-      rm -f "$pgp_tmp"
 
       # Step 2: Add apt repo and install packages.
       repo_file="/etc/apt/sources.list.d/mongodb-org-${series}.list"
